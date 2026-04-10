@@ -1,5 +1,5 @@
 name: modules
-title: Private Models-as-a-Service - A Practical Introduction with Red Hat AI
+title: RAG Escalation Lab
 version: main
 nav:
   - modules/ROOT/nav.adoc
