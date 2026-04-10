@@ -1,46 +1,204 @@
-:imagesdir: ../assets/images
+= Orientation and Guardrails
+:navtitle: Orientation and Guardrails
 
-[#maas_introduction]
-= Introduction: The Hidden Cost of Infrastructure-as-a-Service
+_Establish scope, intent, and behavioral expectations so the lab stays focused on judgment, not tool-chasing._
 
-When infrastructure is self-service with no clear guardrails in place, problems can quickly emerge:
+== 0.1 What This Session Is (and Is Not)
 
-- Teams struggle to correctly request and size GPU resources
-- Multiple teams may deploy identical models, duplicating effort
-- Expensive GPUs remain idle or become overloaded
-- Infrastructure costs escalate without clear accountability
-- Developers need model access, not GPU management complexity
+This session *is*:
 
-[.bordershadow]
-image::iaas.png[width="50%"]
+* A guided walkthrough of a realistic enterprise AI workflow
+* Focused on connecting models to data responsibly
+* Designed to teach how to decide what to do next, not just how to run tools
 
-== Models-as-a-Service: A Better Abstraction for AI at Scale
+This session is *not*:
 
-To address these challenges as a platform engineer, you will design a centralized, reusable, and secure model-serving layer:
+* A fine-tuning workshop
+* A deep dive into frameworks or internals
+* A performance optimization exercise
+* A "try every feature" demo
 
-**Centralized Model Management**
+*Set expectations:*
 
-* Platform teams deploy and maintain models with proper lifecycle management
-* Versioning, rollbacks, and testing become standardized processes
+* One scenario
+* One execution path
+* No fine-tuning today
+* No optimization rabbit holes
 
-**Secure API Gateway**
+[NOTE]
+====
+Say explicitly: "Today is about judgment, not heroics."
+====
 
-* All model access goes through authenticated, rate-limited endpoints
-* Full observability and monitoring across all model interactions
 
-**Developer-Friendly Access**
+== 0.2 The Mental Model for Today
 
-* Developers consume models without managing underlying hardware
-* Teams focus on building applications, agents, and features powered by AI
+The governing principle for this lab:
 
-**Efficient Resource Utilization**
+[IMPORTANT]
+====
+*Escalation of effort must be justified by evidence.*
+====
 
-* GPU resources are pooled and shared across the organization
-* Eliminates waste while ensuring fair access and cost control
+Today's workflow follows this progression:
 
-[.bordershadow]
-image::maas.png[width="50%"]
+----
+Baseline -> Data Quality -> Retrieval -> Evaluation -> Decision
+----
 
-== Module 1 Goals: Step into the Developer role.
+Key ideas to land:
 
-In this first module, you will take your first step into the role of a developer. You will access your OpenShift web console and get access to your model credentials that have been set up through a Models-as-a-Service interface. 
+* We *start simple*
+* We *measure outcomes*
+* We *only escalate when the data tells us to*
+
+[NOTE]
+====
+"If you already know the answer is fine-tuning, you're skipping the part where most projects fail."
+====
+
+
+== 0.3 What Success Looks Like Today
+
+By the end of Section 05, participants should be able to:
+
+* Explain *why ingestion quality matters more than model choice*
+* Show *when RAG meaningfully improves outcomes*
+* Evaluate whether results are _good enough_ using simple criteria
+* Articulate *why escalation is or is not justified*
+
+Success is *not*:
+
+* Running every cell successfully
+* Memorizing commands
+* Achieving "perfect" answers
+
+
+== 0.4 How the Lab Will Run
+
+Set these expectations *before* anyone opens a notebook.
+
+* This lab is delivered as a *guided Jupyter notebook*
+* Code and explanation are *interleaved*
+* Participants are *not expected to write code from scratch*
+* Pre-generated outputs exist for *every major step*
+
+*Facilitator guidance:*
+
+* If a cell takes more than 2-3 minutes to run, *move on* (tolerance will vary by cell)
+* Use pre-built outputs without apology
+* Focus discussion on _interpretation_, not execution
+
+
+== 0.5 Ground Rules
+
+*One path forward* -- We follow a single canonical workflow today.
+
+*Questions are welcome; tangents are parked* -- Interesting side topics are noted but deferred.
+
+*No premature optimization* -- We don't tune, scale, or optimize before we understand the problem.
+
+*Evidence beats instinct* -- "It feels better" is not a sufficient reason to escalate.
+
+
+== 0.6 Setting the Tone
+
+[NOTE]
+====
+"This lab reflects how successful AI engagements actually unfold: slowly at first, deliberately, and with far more attention paid to data and evaluation than to models."
+====
+
+
+== 0.7 Setting Up the Workbench
+
+Before any code runs, the environment has to exist. This section walks through standing up your Red Hat AI workbench from scratch. This is not background infrastructure work. Every decision made here -- storage size, image selection, repo structure -- directly affects what is possible in the lab.
+
+=== 0.7.1 Log into the Lab
+
+Using your Red Hat SSO credentials, log into the OpenShift AI dashboard at the URL provided by your instructor. Once authenticated, you will land on the Red Hat OpenShift AI home screen.
+
+=== 0.7.2 Create a Project
+
+From the dashboard, navigate to *Data Science Projects* and click *Create Project*. Name the project `continuum-cluster`. This project is the namespace that will contain your workbench, storage, and all associated resources for the lab series.
+
+=== 0.7.3 Create a Workbench
+
+Inside your new project, click *Create Workbench*. Configure it as follows:
+
+* *Name:* `continuum-workbench`
+* *Image:* Jupyter | PyTorch | CUDA | Python 3.12
+* *Container size:* Medium (6 CPU / 24 GiB)
+* *Accelerator:* NVIDIA GPU L40S (1)
+
+=== 0.7.4 Increase Storage Size
+
+The default storage allocation is not sufficient for this lab. The repo contains large model files tracked with Git LFS, and Docling generates substantial intermediate outputs. Before finalizing the workbench, increase the persistent storage to at least `50 GiB`.
+
+=== 0.7.5 Launch the Workbench
+
+Click *Create Workbench*. The status will show as *Starting*. Wait until the status changes to *Running*, then click *Open* to launch JupyterLab in a new tab. This typically takes 1-3 minutes on first launch.
+
+=== 0.7.6 Open a Terminal
+
+Inside JupyterLab, open a terminal from the Launcher tab (*File > New > Terminal*). All remaining setup steps in this section are run here, not in a notebook cell.
+
+=== 0.7.7 Install Git LFS
+
+The lab repository uses Git LFS to store large files, including the source PDFs used for ingestion. Without LFS initialized, cloning the repo will pull pointer files instead of the actual content.
+
+Run:
+
+[source,bash]
+----
+git lfs install
+----
+
+You should see: `Git LFS initialized.`
+
+[NOTE]
+====
+On some lab environments, `git lfs install` may fail with a "command not found" error. If it fails, skip this step and continue. A fallback is provided below.
+====
+
+=== 0.7.8 Clone the Repository
+
+Clone the lab repository:
+
+[source,bash]
+----
+git clone https://github.com/rhai-workshops/EscalationLab.git
+----
+
+After the clone completes, verify the PDFs pulled down correctly:
+
+[source,bash]
+----
+ls -lh EscalationLab/docs/*.pdf
+----
+
+The main rulebook should be approximately 106 MB. If it shows a few hundred bytes instead, LFS did not pull the actual files.
+
+*Option A -- If `git lfs` is available:*
+
+[source,bash]
+----
+cd EscalationLab && git lfs pull
+----
+
+*Option B -- If `git lfs` is not available:*
+
+[source,bash]
+----
+cd EscalationLab/docs
+curl -L -o Basic-Fantasy-RPG-Rules-r142.pdf http://franksworld.com/labs/redhat/Basic-Fantasy-RPG-Rules-r142.pdf
+cd ..
+----
+
+Verify the downloads by checking file sizes again:
+
+[source,bash]
+----
+ls -lh docs/*.pdf
+----
+
+Once the file sizes look correct, the environment is ready. Move to Section 1.
